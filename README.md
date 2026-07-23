@@ -13,8 +13,27 @@ User Manual for install and usage: https://github.com/canessae/nails/blob/main/N
   <img alt="NAILS GUI" src="https://github.com/canessae/nails/blob/main/GraphicalAbstract.png" width="550">
 </picture>
 
-##
+## Run the web app
 
+Install the web dependencies:
+
+```bash
+python3.10 -m pip install -r requirements-web.txt
+```
+
+Start the site locally:
+
+```bash
+python3.10 web_app.py
+```
+
+Or run it with Gunicorn:
+
+```bash
+gunicorn --bind 0.0.0.0:$PORT wsgi:app
+```
+
+For deployment to a hosting service such as Render, Railway, or Heroku, make sure the environment exposes a `PORT` value and use the Gunicorn entry point from the included Procfile.
 
 #### Citation
 

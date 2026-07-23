@@ -1,0 +1,11 @@
+flask
+pillow
+numpy
+pandas
+opencv-python-headless
+albumentations
+segmentation-models-pytorch
+torch
+torchvision
+timm
+gunicorn
