@@ -8,4 +8,5 @@ segmentation-models-pytorch
 torch
 torchvision
 timm
+matplotlib
 gunicorn
