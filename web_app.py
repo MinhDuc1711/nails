@@ -9,8 +9,6 @@ import pandas as pd
 from flask import Flask, render_template_string, request
 from PIL import Image
 
-from data_visualizer import colour_code_segmentation, reverse_one_hot
-from predictor import Predictor, SingleNail
 from utils import get_final_path, get_validation_augmentation
 
 app = Flask(__name__)
@@ -27,147 +25,84 @@ TEMPLATE = """
   <meta name='viewport' content='width=device-width, initial-scale=1, maximum-scale=1'>
   <title>NAILS Web App</title>
   <style>
-    :root {
-      color-scheme: light;
-      --bg: #f3f7fb;
-      --surface: #ffffff;
-      --surface-2: #eef4fb;
-      --text: #10263d;
-      --muted: #5c728d;
-      --accent: #1f6feb;
-      --accent-2: #0f4cc3;
-      --border: #dfe8f3;
-    }
+    :root { color-scheme: light; --bg:#f4f8fc; --surface:#fff; --text:#13263b; --muted:#5f7287; --accent:#2563eb; --border:#dce7f2; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Roboto, Arial, sans-serif;
-      background: linear-gradient(135deg, var(--bg), #e8f0f8);
-      color: var(--text);
-      min-height: 100vh;
-    }
-    .app-shell { max-width: 1120px; margin: 0 auto; padding: 20px; }
-    .hero {
-      background: linear-gradient(120deg, var(--surface), var(--surface-2));
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 22px;
-      box-shadow: 0 10px 30px rgba(16, 38, 61, 0.08);
-      margin-bottom: 18px;
-    }
-    .hero h1 { margin: 0 0 8px; font-size: clamp(1.7rem, 4vw, 2.3rem); letter-spacing: -0.02em; }
-    .hero p { margin: 0; color: var(--muted); line-height: 1.5; }
-    .board { display: grid; grid-template-columns: 1.02fr 0.98fr; gap: 18px; }
-    .panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 18px;
-      box-shadow: 0 10px 30px rgba(16, 38, 61, 0.06);
-    }
-    .panel h2 { margin-top: 0; margin-bottom: 10px; font-size: 1.1rem; }
-    form { display: grid; gap: 12px; }
-    .upload-box {
-      border: 2px dashed var(--border);
-      border-radius: 16px;
-      padding: 16px;
-      background: #fbfdff;
-      text-align: center;
-    }
-    input[type='file'] { width: 100%; padding: 10px; border-radius: 10px; background: white; border: 1px solid var(--border); color: var(--text); }
-    button {
-      border: 0; border-radius: 999px; padding: 12px 16px; font-weight: 700; font-size: 0.98rem;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: white; cursor: pointer; min-height: 46px;
-    }
-    button:active { transform: scale(0.98); }
-    .hint { color: var(--muted); font-size: 0.95rem; line-height: 1.4; }
-    .error { color: #c0392b; font-weight: 600; margin-top: 8px; }
-    .result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
-    .result-card { background: var(--surface-2); border-radius: 16px; padding: 10px; border: 1px solid var(--border); }
-    .result-card h3 { margin: 0 0 8px; font-size: 0.98rem; }
-    img { width: 100%; display: block; border-radius: 12px; border: 1px solid var(--border); background: white; object-fit: contain; max-height: 320px; }
-    .analysis-panel { margin-top: 18px; display: grid; gap: 14px; }
-    .analysis-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 16px; padding: 14px; }
-    .rgb-chart { display: flex; align-items: flex-end; gap: 10px; height: 180px; margin-top: 10px; }
-    .rgb-bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    .bar-track { width: 100%; height: 140px; display: flex; align-items: flex-end; background: #f9fbfe; border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
-    .bar-fill { width: 100%; border-radius: 999px; }
-    .bar-fill.red { background: linear-gradient(180deg, #ff7b7b, #d63031); }
-    .bar-fill.green { background: linear-gradient(180deg, #6fdc8c, #2e8b57); }
-    .bar-fill.blue { background: linear-gradient(180deg, #79b7ff, #2563eb); }
-    .bar-label { font-size: 0.85rem; color: var(--muted); }
-    .nail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 12px; }
-    .nail-card { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 10px; display: grid; gap: 8px; align-content: start; }
-    .nail-card img { max-height: 120px; min-height: 90px; object-fit: cover; }
-    .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #eaf3ff; color: var(--accent-2); font-size: 0.82rem; font-weight: 600; }
-    .empty-state { color: var(--muted); padding: 22px 10px; text-align: center; border: 1px dashed var(--border); border-radius: 14px; background: #fcfeff; }
-    @media (max-width: 820px) { .board { grid-template-columns: 1fr; } .result-grid, .nail-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 560px) { .app-shell { padding: 12px; } .hero, .panel { padding: 14px; border-radius: 16px; } button { width: 100%; } }
+    body { margin:0; font-family:Segoe UI, Arial, sans-serif; background:linear-gradient(135deg,var(--bg),#e7f0f8); color:var(--text); min-height:100vh; }
+    .app-shell { max-width:1120px; margin:0 auto; padding:20px; }
+    .hero { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:20px; box-shadow:0 10px 25px rgba(19,38,59,.06); margin-bottom:16px; }
+    .hero h1 { margin:0 0 6px; font-size:clamp(1.6rem,3.4vw,2.1rem); }
+    .hero p { margin:0; color:var(--muted); line-height:1.5; }
+    .board { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .panel { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:16px; box-shadow:0 8px 20px rgba(19,38,59,.05); }
+    .panel h2 { margin:0 0 10px; font-size:1rem; }
+    form { display:grid; gap:10px; }
+    .upload-box { border:2px dashed var(--border); border-radius:14px; padding:14px; background:#fbfdff; }
+    input[type='file'] { width:100%; padding:10px; border-radius:10px; border:1px solid var(--border); }
+    button { border:0; border-radius:999px; padding:11px 15px; font-weight:700; color:#fff; background:var(--accent); cursor:pointer; min-height:44px; }
+    .hint, .muted { color:var(--muted); font-size:.95rem; line-height:1.4; }
+    .error { color:#b42318; font-weight:600; margin-top:8px; }
+    .result-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:10px; }
+    .result-card { background:#f7fbff; border:1px solid var(--border); border-radius:14px; padding:10px; }
+    .result-card h3 { margin:0 0 8px; font-size:.95rem; }
+    img { width:100%; display:block; border-radius:10px; border:1px solid var(--border); background:#fff; object-fit:contain; max-height:320px; }
+    .analysis-panel { margin-top:12px; display:grid; gap:10px; }
+    .analysis-card { background:#f7fbff; border:1px solid var(--border); border-radius:14px; padding:12px; }
+    .rgb-chart { display:flex; align-items:flex-end; gap:10px; height:160px; margin-top:10px; }
+    .rgb-bar { flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .bar-track { width:100%; height:120px; display:flex; align-items:flex-end; background:#fff; border-radius:999px; overflow:hidden; border:1px solid var(--border); }
+    .bar-fill { width:100%; border-radius:999px; }
+    .bar-fill.red { background:linear-gradient(180deg,#ff8a8a,#d93025); }
+    .bar-fill.green { background:linear-gradient(180deg,#7fdb95,#2f8f56); }
+    .bar-fill.blue { background:linear-gradient(180deg,#81b5ff,#2563eb); }
+    .bar-label { font-size:.85rem; color:var(--muted); }
+    .nail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-top:10px; }
+    .nail-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:10px; display:grid; gap:8px; }
+    .nail-card img { max-height:120px; min-height:90px; object-fit:cover; }
+    .pill { display:inline-block; padding:4px 8px; border-radius:999px; background:#eaf3ff; color:#1743a6; font-size:.82rem; font-weight:600; }
+    .empty-state { color:var(--muted); padding:16px 8px; text-align:center; border:1px dashed var(--border); border-radius:12px; background:#fcfeff; }
+    @media (max-width:820px){ .board{grid-template-columns:1fr;} .result-grid,.nail-grid{grid-template-columns:1fr;} }
+    @media (max-width:560px){ .app-shell{padding:12px;} .hero,.panel{padding:14px;} button{width:100%;} }
   </style>
 </head>
 <body>
   <div class='app-shell'>
     <div class='hero'>
       <h1>NAILS</h1>
-      <p>Upload a nail image and the app will highlight the nail region using the original segmentation model.</p>
+      <p>Upload a nail image and the app will highlight the nail regions and summarize their colors.</p>
     </div>
-
     <div class='board'>
       <div class='panel'>
         <h2>Upload image</h2>
         <form method='post' enctype='multipart/form-data'>
-          <div class='upload-box'>
-            <input type='file' name='image' accept='image/*' required>
-          </div>
+          <div class='upload-box'><input type='file' name='image' accept='image/*' required></div>
           <button type='submit'>Analyze image</button>
-          <div class='hint'>Tip: photos taken in good light work best. You can use your camera directly from your phone.</div>
+          <div class='hint'>Use a clear photo in good light for the best segmentation result.</div>
         </form>
-        {% if error %}
-          <div class='error'>{{ error }}</div>
-        {% endif %}
+        {% if error %}<div class='error'>{{ error }}</div>{% endif %}
       </div>
-
       <div class='panel'>
         <h2>Results</h2>
         {% if result_image %}
           <div class='result-grid'>
-            <div class='result-card'>
-              <h3>Original image</h3>
-              <img src='data:image/png;base64,{{ result_image }}' alt='Original image'>
-            </div>
-            <div class='result-card'>
-              <h3>Segmentation overlay</h3>
-              <img src='data:image/png;base64,{{ overlay_image }}' alt='Segmentation overlay'>
-            </div>
+            <div class='result-card'><h3>Original image</h3><img src='data:image/png;base64,{{ result_image }}' alt='Original image'></div>
+            <div class='result-card'><h3>Segmentation overlay</h3><img src='data:image/png;base64,{{ overlay_image }}' alt='Segmentation overlay'></div>
           </div>
         {% else %}
           <div class='empty-state'>No image has been analyzed yet. Upload a photo to get started.</div>
         {% endif %}
-
         <div class='analysis-panel'>
           <div class='analysis-card'>
             <h3>Color analysis</h3>
             {% if analysis and analysis.rgb_graph %}
-              <p style='margin: 4px 0 0; color: var(--muted);'>Overall RGB profile from the detected nail regions.</p>
               <div class='rgb-chart'>
-                <div class='rgb-bar'>
-                  <div class='bar-track'><div class='bar-fill red' style='height: {{ analysis.rgb_graph.red }}%;'></div></div>
-                  <span class='bar-label'>Red</span>
-                </div>
-                <div class='rgb-bar'>
-                  <div class='bar-track'><div class='bar-fill green' style='height: {{ analysis.rgb_graph.green }}%;'></div></div>
-                  <span class='bar-label'>Green</span>
-                </div>
-                <div class='rgb-bar'>
-                  <div class='bar-track'><div class='bar-fill blue' style='height: {{ analysis.rgb_graph.blue }}%;'></div></div>
-                  <span class='bar-label'>Blue</span>
-                </div>
+                <div class='rgb-bar'><div class='bar-track'><div class='bar-fill red' style='height: {{ analysis.rgb_graph.red }}%;'></div></div><span class='bar-label'>Red</span></div>
+                <div class='rgb-bar'><div class='bar-track'><div class='bar-fill green' style='height: {{ analysis.rgb_graph.green }}%;'></div></div><span class='bar-label'>Green</span></div>
+                <div class='rgb-bar'><div class='bar-track'><div class='bar-fill blue' style='height: {{ analysis.rgb_graph.blue }}%;'></div></div><span class='bar-label'>Blue</span></div>
               </div>
             {% else %}
               <div class='empty-state'>The color summary will appear here after analysis.</div>
             {% endif %}
           </div>
-
           <div class='analysis-card'>
             <h3>Separated nails</h3>
             {% if analysis and analysis.nails %}
@@ -176,8 +111,8 @@ TEMPLATE = """
                   <div class='nail-card'>
                     <img src='data:image/png;base64,{{ nail.image }}' alt='Nail detail'>
                     <div class='pill'>{{ nail.color }}</div>
-                    <div style='font-size: 0.9rem; color: var(--muted);'>RGB {{ nail.rgb }}</div>
-                    <div style='font-size: 0.92rem;'>{{ nail.conclusion }}</div>
+                    <div class='muted'>RGB {{ nail.rgb }}</div>
+                    <div>{{ nail.conclusion }}</div>
                   </div>
                 {% endfor %}
               </div>
@@ -201,11 +136,16 @@ def index():
         if not image_file or not image_file.filename:
             return render_template_string(TEMPLATE, error='Please choose an image.', result_image=None, overlay_image=None)
 
+        temp_path = None
         try:
             image_bytes = image_file.read()
             image = Image.open(BytesIO(image_bytes)).convert('RGB')
-            temp_path = os.path.join(tempfile.gettempdir(), f"nails_upload_{os.getpid()}.png")
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
+                temp_path = temp_file.name
             image.save(temp_path)
+
+            from data_visualizer import colour_code_segmentation, reverse_one_hot
+            from predictor import Predictor, SingleNail
 
             class_dict_path = get_final_path(0, ['labels', 'label_class_dict.csv'])
             class_dict = pd.read_csv(class_dict_path)
@@ -249,6 +189,9 @@ def index():
             )
         except Exception as exc:
             return render_template_string(TEMPLATE, error=f'Analysis failed: {exc}', result_image=None, overlay_image=None)
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                os.remove(temp_path)
 
     return render_template_string(TEMPLATE, error=None, result_image=None, overlay_image=None, analysis=None)
 

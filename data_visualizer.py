@@ -3,23 +3,7 @@
 """
 @author: A.Akdogan
 """
-import matplotlib.pyplot as plt
 import numpy as np
-
-def visualize(**images):
-    """
-    Plot images in one row
-    """
-    n_images = len(images)
-    plt.figure(figsize=(20,8))
-    for idx, (name, image) in enumerate(images.items()):
-        plt.subplot(1, n_images, idx + 1)
-        plt.xticks([]); 
-        plt.yticks([])
-        # get title from the parameter names
-        plt.title(name.replace('_',' ').title(), fontsize=20)
-        plt.imshow(image)
-    plt.show()
 
 # Perform one hot encoding on label
 def one_hot_encode(label, label_values):
