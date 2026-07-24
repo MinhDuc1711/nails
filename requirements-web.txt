@@ -5,6 +5,7 @@ pandas
 opencv-python-headless
 albumentations
 segmentation-models-pytorch
+pretrainedmodels
 torch
 torchvision
 timm
