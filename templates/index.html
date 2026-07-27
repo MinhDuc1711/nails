@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NAILS Web App</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <h1>NAILS</h1>
+        <p>Upload an image and the app will detect nail regions, summarize RGB values, and display color conclusions.</p>
+      </div>
+    </header>
+
+    <main class="board">
+      <section class="panel upload-panel">
+        <h2>Upload image</h2>
+        <form id="upload-form" enctype="multipart/form-data">
+          <div class="upload-box">
+            <input id="image-input" type="file" name="image" accept="image/*,.jfif" required />
+          </div>
+          <button type="submit">Analyze image</button>
+          <p class="hint">Use a clear photo with good lighting. .jfif files are supported.</p>
+        </form>
+        <div id="error-message" class="error hidden"></div>
+      </section>
+
+      <section class="panel results-panel">
+        <h2>Results</h2>
+        <div id="results-container" class="hidden">
+          <div class="result-grid">
+            <article class="result-card">
+              <h3>Original image</h3>
+              <img id="original-image" src="" alt="Original upload" />
+            </article>
+            <article class="result-card">
+              <h3>Segmentation overlay</h3>
+              <img id="overlay-image" src="" alt="Segmentation overlay" />
+            </article>
+          </div>
+
+          <div class="analysis-panel">
+            <article class="analysis-card">
+              <h3>Color analysis</h3>
+              <div id="rgb-chart" class="rgb-chart"></div>
+            </article>
+            <article class="analysis-card">
+              <h3>Detected nails</h3>
+              <div id="nail-grid" class="nail-grid"></div>
+            </article>
+          </div>
+        </div>
+        <div id="empty-state" class="empty-state">Upload an image to see analysis results.</div>
+      </section>
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</body>
+</html>
