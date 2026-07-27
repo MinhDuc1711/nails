@@ -72,26 +72,33 @@ class SingleNail(torch.utils.data.Dataset):
 
 class Predictor:
 
-    def __init__(self, img_path, select_class_rgb_values, select_classes, device):
+    def __init__(self, img_path, select_class_rgb_values, select_classes, device, model=None, preprocessing_fn=None):
 
-        preprocessing_fn_path = get_final_path(0, ['model', 'preprocessing_fn.pkl'])
-        model_path = get_final_path(0, ['model', 'best_model.pth'])
-
-        if not os.path.exists(preprocessing_fn_path):
-            raise FileNotFoundError(
-                f"Missing preprocessing file: {preprocessing_fn_path}. "
-                "Ensure model/preprocessing_fn.pkl is present in the repository."
-            )
-
-        if not os.path.exists(model_path):
-            ensure_model_file(model_path)
-
-        self.model = torch.load(model_path, map_location = device)
-        self.preprocessing_fn = pickle.load(open(preprocessing_fn_path, 'rb'))
         self.select_classes = select_classes
         self.img_path = img_path
         self.select_class_rgb_values = select_class_rgb_values
         self.device = device
+
+        if preprocessing_fn is None:
+            preprocessing_fn_path = get_final_path(0, ['model', 'preprocessing_fn.pkl'])
+            if not os.path.exists(preprocessing_fn_path):
+                raise FileNotFoundError(
+                    f"Missing preprocessing file: {preprocessing_fn_path}. "
+                    "Ensure model/preprocessing_fn.pkl is present in the repository."
+                )
+            self.preprocessing_fn = pickle.load(open(preprocessing_fn_path, 'rb'))
+        else:
+            self.preprocessing_fn = preprocessing_fn
+
+        if model is None:
+            model_path = get_final_path(0, ['model', 'best_model.pth'])
+            if not os.path.exists(model_path):
+                ensure_model_file(model_path)
+            self.model = torch.load(model_path, map_location=device)
+        else:
+            self.model = model
+
+        self.model.eval()
         
         processed_base_data_path = get_final_path(1, ['dataset', 'processed'])
         self.x_test_dir = os.path.join(processed_base_data_path, 'test')
@@ -117,8 +124,8 @@ class Predictor:
     def get_predicted_mask(self, processed_img):
 
         x_tensor = torch.from_numpy(processed_img).to(self.device).unsqueeze(0)
-        # Predict test image
-        pred_mask = self.model(x_tensor)
+        with torch.no_grad():
+            pred_mask = self.model(x_tensor)
         pred_mask = pred_mask.detach().squeeze().cpu().numpy()
         pred_mask = np.transpose(pred_mask,(1,2,0))
         
@@ -152,6 +159,24 @@ class Predictor:
             predicted_mask = pred_mask,
             predicted_building_heatmap = pred_building_heatmap
         )
+
+    @classmethod
+    def load_assets(cls, device='cpu'):
+        preprocessing_fn_path = get_final_path(0, ['model', 'preprocessing_fn.pkl'])
+        model_path = get_final_path(0, ['model', 'best_model.pth'])
+
+        if not os.path.exists(preprocessing_fn_path):
+            raise FileNotFoundError(
+                f"Missing preprocessing file: {preprocessing_fn_path}. "
+                "Ensure model/preprocessing_fn.pkl is present in the repository."
+            )
+        if not os.path.exists(model_path):
+            ensure_model_file(model_path)
+
+        model = torch.load(model_path, map_location=device)
+        model.eval()
+        preprocessing_fn = pickle.load(open(preprocessing_fn_path, 'rb'))
+        return model, preprocessing_fn
 
     def main(self):
 

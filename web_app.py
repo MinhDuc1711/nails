@@ -57,7 +57,19 @@ def api_analyze():
         select_class_indices = [class_names.index(cls.lower()) for cls in select_classes]
         select_class_rgb_values = np.array(class_rgb_values)[select_class_indices]
 
-        predictor = Predictor(temp_path, select_class_rgb_values, select_classes, device='cpu')
+        from predictor import Predictor
+        if not hasattr(app, 'predictor_assets'):
+            app.predictor_assets = Predictor.load_assets(device='cpu')
+        model, preprocessing_fn = app.predictor_assets
+
+        predictor = Predictor(
+            temp_path,
+            select_class_rgb_values,
+            select_classes,
+            device='cpu',
+            model=model,
+            preprocessing_fn=preprocessing_fn,
+        )
         processed_img = predictor.img_preprocess()
         pred_mask = predictor.get_predicted_mask(processed_img)
 
