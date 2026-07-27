@@ -14,6 +14,22 @@ import cv2
 import torch
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+import shutil
+from urllib.request import Request, urlopen
+
+MODEL_DOWNLOAD_URL = (
+    'https://www.dropbox.com/scl/fo/spk489eavbkggaeplg4sm/AMPNp-cOtayeFPsBTvryYMk?rlkey=qm5rnncl7cwdb5fl6pof3c4em&dl=1'
+)
+
+def ensure_model_file(path):
+    if os.path.exists(path):
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    print(f'Downloading model weights to {path}...')
+    request = Request(MODEL_DOWNLOAD_URL, headers={'User-Agent': 'Mozilla/5.0'})
+    with urlopen(request, timeout=300) as response, open(path, 'wb') as out_file:
+        shutil.copyfileobj(response, out_file)
+    print('Model download complete.')
 
 
 class SingleNail(torch.utils.data.Dataset):
@@ -60,6 +76,16 @@ class Predictor:
 
         preprocessing_fn_path = get_final_path(0, ['model', 'preprocessing_fn.pkl'])
         model_path = get_final_path(0, ['model', 'best_model.pth'])
+
+        if not os.path.exists(preprocessing_fn_path):
+            raise FileNotFoundError(
+                f"Missing preprocessing file: {preprocessing_fn_path}. "
+                "Ensure model/preprocessing_fn.pkl is present in the repository."
+            )
+
+        if not os.path.exists(model_path):
+            ensure_model_file(model_path)
+
         self.model = torch.load(model_path, map_location = device)
         self.preprocessing_fn = pickle.load(open(preprocessing_fn_path, 'rb'))
         self.select_classes = select_classes
