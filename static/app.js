@@ -83,7 +83,20 @@ async function submitImage(event) {
       body: formData,
     });
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      // The server closed the connection without sending a full JSON body —
+      // usually a timeout or the process running out of memory mid-request.
+      setError(
+        response.ok
+          ? 'The server stopped responding before finishing the analysis. Please try again in a moment.'
+          : `The server returned an unexpected error (status ${response.status}). Please try again in a moment.`
+      );
+      return;
+    }
+
     if (!response.ok) {
       setError(data.error || 'Unable to process the image.');
       return;

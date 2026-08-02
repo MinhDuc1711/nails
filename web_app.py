@@ -19,6 +19,48 @@ DEBUG = os.getenv('FLASK_DEBUG', '0') == '1'
 
 ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.jfif'}
 
+# Load the model once, at process startup, instead of on the first user
+# request. Downloading + loading the model can take a long time on a slow
+# connection or a small hosting instance, and doing that inside a request
+# risks the request timing out (server kills the connection mid-response,
+# which shows up in the browser as "Unexpected end of JSON input"). Loading
+# it here means that work happens during deploy/boot, where hosts like
+# Render allow a much longer grace period before a health check gives up.
+_predictor_assets = None
+_predictor_load_error = None
+
+
+def get_predictor_assets():
+    """Return the cached (model, preprocessing_fn) tuple, loading it lazily
+    only as a fallback if startup loading failed or hasn't finished yet."""
+    global _predictor_assets, _predictor_load_error
+    if _predictor_assets is not None:
+        return _predictor_assets
+    if _predictor_load_error is not None:
+        raise _predictor_load_error
+    from predictor import Predictor
+    _predictor_assets = Predictor.load_assets(device='cpu')
+    return _predictor_assets
+
+
+def _load_predictor_assets_at_startup():
+    global _predictor_assets, _predictor_load_error
+    try:
+        from predictor import Predictor
+        print('Loading model assets at startup...')
+        _predictor_assets = Predictor.load_assets(device='cpu')
+        print('Model assets loaded successfully.')
+    except Exception as exc:  # noqa: BLE001
+        # Don't crash the whole process if this fails — keep the server up
+        # so it can still respond with a clear JSON error, and retry lazily
+        # on the next request.
+        import traceback
+        traceback.print_exc()
+        _predictor_load_error = exc
+
+
+_load_predictor_assets_at_startup()
+
 
 def allowed_file(filename):
     return os.path.splitext(filename)[1].lower() in ALLOWED_EXTENSIONS
@@ -58,9 +100,7 @@ def api_analyze():
         select_class_rgb_values = np.array(class_rgb_values)[select_class_indices]
 
         from predictor import Predictor
-        if not hasattr(app, 'predictor_assets'):
-            app.predictor_assets = Predictor.load_assets(device='cpu')
-        model, preprocessing_fn = app.predictor_assets
+        model, preprocessing_fn = get_predictor_assets()
 
         predictor = Predictor(
             temp_path,

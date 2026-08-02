@@ -27,9 +27,51 @@ def ensure_model_file(path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     print(f'Downloading model weights to {path}...')
     request = Request(MODEL_DOWNLOAD_URL, headers={'User-Agent': 'Mozilla/5.0'})
-    with urlopen(request, timeout=300) as response, open(path, 'wb') as out_file:
-        shutil.copyfileobj(response, out_file)
-    print('Model download complete.')
+    tmp_path = path + '.download'
+    try:
+        with urlopen(request, timeout=300) as response, open(tmp_path, 'wb') as out_file:
+            shutil.copyfileobj(response, out_file)
+
+        # MODEL_DOWNLOAD_URL currently points at a Dropbox *folder* share link
+        # (the "/scl/fo/..." path). Downloading a folder link returns a ZIP of
+        # everything in that folder, not the raw best_model.pth weights file,
+        # which makes torch.load() below fail in a confusing way. If this
+        # check trips, replace MODEL_DOWNLOAD_URL with a direct *file* link
+        # (Dropbox file links use "/scl/fi/...", with "&dl=1" at the end).
+        with open(tmp_path, 'rb') as f:
+            header = f.read(4)
+        if header == b'PK\x03\x04':
+            try:
+                import zipfile
+                with zipfile.ZipFile(tmp_path) as zf:
+                    names = zf.namelist()
+                # A genuine torch.save() checkpoint is a zip archive too, but
+                # its top-level entries all share one archive/ prefix. A
+                # Dropbox "download this folder" zip instead contains loose
+                # files/folders from the share (e.g. GraphicalAbstract.png,
+                # NAILS-UserManual-v1.pdf, model/best_model.pth, ...).
+                looks_like_torch_checkpoint = bool(names) and all(
+                    n.split('/')[0] == names[0].split('/')[0] and n.split('/')[0].endswith('best_model')
+                    for n in names
+                )
+            except Exception:
+                looks_like_torch_checkpoint = False
+            if not looks_like_torch_checkpoint:
+                os.remove(tmp_path)
+                raise RuntimeError(
+                    'Downloaded "model weights" file looks like a Dropbox folder '
+                    'export (a ZIP of multiple files), not the raw best_model.pth '
+                    'weights. MODEL_DOWNLOAD_URL in predictor.py is set to a '
+                    'Dropbox *folder* link ("/scl/fo/..."). Replace it with a '
+                    'direct *file* link to best_model.pth (Dropbox file links '
+                    'use "/scl/fi/...&dl=1").'
+                )
+
+        os.replace(tmp_path, path)
+        print('Model download complete.')
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 class SingleNail(torch.utils.data.Dataset):
